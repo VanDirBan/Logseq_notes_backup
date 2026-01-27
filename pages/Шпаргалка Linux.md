@@ -1,0 +1,61 @@
+### Навигация и файлы
+	- `pwd` — где ты
+	- `ls -lah` — список с правами/размером/скрытыми
+	- `cd -` — назад в прошлую директорию
+	- `tree -L 2` — дерево (если установлен)
+	- `cp -a SRC DST` — копия “как есть” (права/время)
+	- `mv SRC DST` — переместить/переименовать
+	- `rm -i FILE` / `rm -rf DIR` — осторожно (лучше `-i` для важных)
+	- `mkdir -p path/to/dir` — создать с родителями
+	- `touch file` — создать/обновить mtime
+- ### Поиск и текст
+	- `grep -Rni "text" .` — найти текст рекурсивно (R), номера строк (n), ignore case (i)
+	- `rg "text" .` — ripgrep (если есть) быстрее/удобнее
+	- `find . -name "*.log" -type f` — найти файлы
+	- `find /var/log -type f -mtime -2` — изменённые за 2 дня
+	- `sed -n '1,120p' file` — показать строки 1–120
+	- `awk '{print $1,$NF}' file` — простая обработка колонок
+	- `head -n 50 file`, `tail -n 100 file`, `tail -f file`
+- ### Права и владельцы
+	- `ls -l` — смотреть права
+	- `chmod 644 file` (rw-r--r--) — обычный файл
+	- `chmod 755 dir` (rwxr-xr-x) — обычная директория/скрипт
+	- `chown user:group file` — владелец/группа
+	- `umask` — маска прав по умолчанию
+	- `id`, `groups` — кто ты и какие группы
+- ### Процессы и ресурсы
+	- `uptime` — load average + аптайм
+	- `top` / `htop` — кто грузит
+	- `ps aux | grep name` — процессы
+	- `pgrep -a name` — найти pid + команда
+	- `kill -TERM PID` → подождать → `kill -KILL PID` (крайний случай)
+	- `nice -n 10 cmd` / `renice 10 -p PID` — приоритет
+- ### Диск и файлы
+	- `df -hT` — свободное место + тип FS
+	- `du -h --max-depth=1 /var | sort -h` — кто ест место
+	- `lsblk -f` — диски/разделы/UUID
+	- `mount | column -t` — что примонтировано
+	- `dmesg -T | tail -n 50` — последние события ядра (с временем)
+- ### Сеть (диагностика)
+	- `ip a` — адреса
+	- `ip r` — маршруты
+	- `ping -c 3 1.1.1.1` — проверка IP
+	- `ping -c 3 google.com` — проверка DNS
+	- `dig google.com +short` / `nslookup google.com` — DNS
+	- `curl -I https://example.com` — HTTP заголовки/доступность
+	- `ss -tulpen` — слушающие порты (вместо netstat)
+	- `traceroute 1.1.1.1` — где теряется маршрут
+	- `nc -vz host 443` — проверка TCP-порта
+- ### systemd (сервисы)
+	- `systemctl status nginx --no-pager`
+	- `systemctl restart nginx`
+	- `systemctl enable --now nginx` — включить в автозапуск и запустить
+	- `journalctl -u nginx -b --no-pager` — логи юнита с загрузки
+	- `journalctl -xe --no-pager` — последние ошибки системы
+- ### Пакеты (Debian/Ubuntu)
+	- `apt update`
+	- `apt install pkg`
+	- `apt remove pkg` / `apt purge pkg`
+	- `apt-cache policy pkg` — версии/репозитории
+	- `dpkg -L pkg` — файлы пакета
+	- `dpkg -S /path/file` — какой пакет владеет файлом

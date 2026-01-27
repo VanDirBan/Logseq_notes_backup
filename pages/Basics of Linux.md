@@ -1198,6 +1198,7 @@
 		- Automate backups with scripts and include compression to save space.
 		- Use `zip` for cross-platform compatibility.
 - #ssh
+  collapsed:: true
 	- **Definition**:
 		- SSH is a protocol for securely accessing and managing remote servers.
 		- Provides encrypted communication between the client and the server.
@@ -1228,6 +1229,7 @@
 			  ssh username@remote_host
 			  ```
 - #scp
+  collapsed:: true
 	- **Definition**:
 		- A command-line utility for securely transferring files between a local and a remote system (or between two remote systems) over SSH.
 	- **Basic Commands**:
