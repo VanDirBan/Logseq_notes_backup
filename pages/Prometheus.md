@@ -498,6 +498,263 @@
 		- This automated PowerShell script simplifies the deployment of Windows Exporter on Windows servers.
 		- Once installed, Windows Exporter will expose metrics (typically on port 9182) that can be scraped by Prometheus.
 		- Integrate these metrics into your monitoring stack to gain comprehensive visibility into your Windows environment.
+- **Installing and Configuring Prometheus Alertmanager**
+	- **Overview**:
+		- **Alertmanager** is the Prometheus component responsible for handling alerts sent by Prometheus.
+		- It receives alerts from Prometheus, then applies logic like **grouping**, **deduplication**, **routing**, **inhibition**, and **silences**.
+		- After processing, Alertmanager delivers notifications to configured receivers (e.g., **Slack**, **Email**, **Telegram**, **Webhooks**).
+		- Alertmanager also provides a Web UI (default port **9093**) for viewing active alerts and managing silences.
+	- **Key Concepts (must know)**:
+		- **Alert (in Prometheus)**: rule that triggers when an expression is true for some time (`for:`).
+		- **Labels**: metadata used for routing (e.g., `severity`, `team`, `service`, `env`).
+		- **Annotations**: human-readable text (summary/description) included in notifications.
+		- **Route**: decision tree that chooses which receiver should handle an alert.
+		- **Receiver**: notification target configuration (Slack/email/webhook/etc.).
+		- **Grouping**: bundling similar alerts into one message.
+		- **Deduplication**: preventing repeated identical notifications.
+		- **Inhibition**: suppressing “less important” alerts when a “more important” alert is firing.
+		- **Silence**: manually muting alerts matching matchers for a time window.
+	- **Installation Steps Overview**:
+		- **Download and Extract**:
+			- Retrieve the Alertmanager release from its GitHub releases page.
+			- Extract the tarball and copy `alertmanager` + `amtool` binaries.
+		- **Create Dedicated User and Directories**:
+			- Create a system user to run Alertmanager securely.
+			- Prepare config and data directories.
+		- **Configure Alertmanager YAML**:
+			- Define routes, receivers, and (optionally) inhibition rules.
+		- **Configure systemd Service**:
+			- Create a systemd unit to manage Alertmanager.
+			- Enable and start the service to launch at boot.
+		- **Connect Prometheus to Alertmanager**:
+			- Add alertmanager target(s) into `prometheus.yml`.
+		- **Verification**:
+			- Check service status and UI availability.
+			- Validate config with `amtool check-config`.
+	- **Automated Installation Script (systemd, Ubuntu/Debian)**:
+		- Save as `install_alertmanager.sh`, `chmod +x`, run as root.
+		  
+		  ```
+		  #!/bin/bash
+		  #--------------------------------------------------------------------
+		  # Script to Install Prometheus Alertmanager on Linux (systemd)
+		  # Tested on Ubuntu/Debian
+		  #--------------------------------------------------------------------
+		  # https://github.com/prometheus/alertmanager/releases
+		  ALERTMANAGER_VERSION="0.28.0"
+		  AM_USER="alertmanager"
+		  AM_BIN_DIR="/usr/bin"
+		  AM_CFG_DIR="/etc/alertmanager"
+		  AM_DATA_DIR="/var/lib/alertmanager"
+		  AM_LISTEN="0.0.0.0:9093"
+		  
+		  set -e
+		  
+		  apt-get update
+		  apt-get install -y wget tar
+		  
+		  # Create user (no login shell)
+		  if ! id "${AM_USER}" >/dev/null 2>&1; then
+		  useradd -rs /bin/false "${AM_USER}"
+		  fi
+		  
+		  # Create directories
+		  mkdir -p "${AM_CFG_DIR}" "${AM_DATA_DIR}"
+		  chown -R "${AM_USER}:${AM_USER}" "${AM_CFG_DIR}" "${AM_DATA_DIR}"
+		  
+		  # Download and install binaries
+		  cd /tmp
+		  wget -q https://github.com/prometheus/alertmanager/releases/download/v${ALERTMANAGER_VERSION}/alertmanager-${ALERTMANAGER_VERSION}.linux-amd64.tar.gz
+		  tar xvfz alertmanager-${ALERTMANAGER_VERSION}.linux-amd64.tar.gz
+		  
+		  cp alertmanager-${ALERTMANAGER_VERSION}.linux-amd64/alertmanager "${AM_BIN_DIR}/alertmanager"
+		  cp alertmanager-${ALERTMANAGER_VERSION}.linux-amd64/amtool "${AM_BIN_DIR}/amtool"
+		  
+		  chown "${AM_USER}:${AM_USER}" "${AM_BIN_DIR}/alertmanager" "${AM_BIN_DIR}/amtool"
+		  chmod 755 "${AM_BIN_DIR}/alertmanager" "${AM_BIN_DIR}/amtool"
+		  
+		  rm -rf /tmp/alertmanager*
+		  
+		  # Minimal config (webhook placeholder)
+		  if [ ! -f "${AM_CFG_DIR}/alertmanager.yml" ]; then
+		  cat <<EOF > "${AM_CFG_DIR}/alertmanager.yml"
+		  global:
+		  resolve_timeout: 5m
+		  
+		  route:
+		  receiver: "default"
+		  group_by: ["alertname", "instance", "service"]
+		  group_wait: 30s
+		  group_interval: 5m
+		  repeat_interval: 4h
+		  
+		  receivers:
+		  - name: "default"
+		  webhook_configs:
+		    - url: "http://127.0.0.1:5001/alert"
+		  EOF
+		  fi
+		  
+		  chown "${AM_USER}:${AM_USER}" "${AM_CFG_DIR}/alertmanager.yml"
+		  
+		  # systemd unit
+		  cat <<EOF > /etc/systemd/system/alertmanager.service
+		  [Unit]
+		  Description=Prometheus Alertmanager
+		  After=network-online.target
+		  Wants=network-online.target
+		  
+		  [Service]
+		  User=${AM_USER}
+		  Group=${AM_USER}
+		  Type=simple
+		  Restart=on-failure
+		  RestartSec=3
+		  ExecStart=${AM_BIN_DIR}/alertmanager \\
+		  --config.file=${AM_CFG_DIR}/alertmanager.yml \\
+		  --storage.path=${AM_DATA_DIR} \\
+		  --web.listen-address=${AM_LISTEN}
+		  
+		  [Install]
+		  WantedBy=multi-user.target
+		  EOF
+		  
+		  systemctl daemon-reload
+		  systemctl enable --now alertmanager
+		  systemctl status alertmanager --no-pager
+		  
+		  # Validate config
+		  amtool check-config ${AM_CFG_DIR}/alertmanager.yml
+		  alertmanager --version
+		  ```
+		- **Post-Installation**:
+			- Alertmanager UI should be available at:
+				- `http://<server-ip>:9093`
+			- Default stateful storage path:
+				- `/var/lib/alertmanager` (silences, notification log, etc.)
+			- Validate config anytime after edits:
+			  
+			  ```
+			  amtool check-config /etc/alertmanager/alertmanager.yml
+			  sudo systemctl restart alertmanager
+			  ```
+		- **Connecting Prometheus → Alertmanager**:
+			- In `prometheus.yml`:
+			  
+			  ```
+			  alerting:
+			  alertmanagers:
+			  - static_configs:
+			      - targets: ['<alertmanager-ip>:9093']
+			  ```
+			- Then reload/restart Prometheus and confirm in Prometheus UI:
+				- **Status → Alertmanagers** should show Alertmanager as UP.
+		- **Example Alert Rule (Prometheus side)**:
+			- File: `rules/alerts.yml`
+			  
+			  ```
+			  groups:
+			  - name: base_alerts
+			  rules:
+			    - alert: InstanceDown
+			      expr: up == 0
+			      for: 2m
+			      labels:
+			        severity: critical
+			        team: ops
+			        service: infra
+			      annotations:
+			        summary: "Instance down: {{ $labels.instance }}"
+			        description: "Target is unreachable for > 2 minutes."
+			  ```
+			- Important:
+				- `labels` drive routing in Alertmanager.
+				- `annotations` become the human message content.
+		- **Alertmanager Routing + Receivers (practical examples)**:
+			- **Routing by severity/team**:
+			  
+			  ```
+			  route:
+			  receiver: "default"
+			  group_by: ["alertname", "instance", "service"]
+			  group_wait: 30s
+			  group_interval: 5m
+			  repeat_interval: 4h
+			  
+			  routes:
+			  - matchers:
+			      - severity="critical"
+			    receiver: "ops-critical"
+			    repeat_interval: 30m
+			  
+			  - matchers:
+			      - team="dev"
+			    receiver: "dev-team"
+			  ```
+			- **Slack receiver example**:
+			  
+			  ```
+			  receivers:
+			  - name: "ops-critical"
+			  slack_configs:
+			    - api_url: "https://hooks.slack.com/services/XXX/YYY/ZZZ"
+			      channel: "#ops-alerts"
+			      title: "[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}"
+			      text: >-
+			        {{ range .Alerts -}}
+			        *{{ .Labels.instance }}* — {{ .Annotations.summary }}
+			        {{ end }}
+			  ```
+			- **Email receiver example**:
+			  
+			  ```
+			  receivers:
+			  - name: "dev-team"
+			  email_configs:
+			    - to: "dev-team@example.com"
+			      from: "alertmanager@example.com"
+			      smarthost: "smtp.example.com:587"
+			      auth_username: "alertmanager@example.com"
+			      auth_password: "CHANGE_ME"
+			      require_tls: true
+			  ```
+		- **Inhibition Rules (reduce noise)**:
+			- If the host is down, suppress warning alerts from the same instance:
+			  
+			  ```
+			  inhibit_rules:
+			  - source_matchers:
+			    - alertname="InstanceDown"
+			    - severity="critical"
+			  target_matchers:
+			    - severity="warning"
+			  equal: ["instance"]
+			  ```
+		- **Silences (maintenance mode)**:
+			- Create silence via CLI:
+			  
+			  ```
+			  amtool --alertmanager.url=http://localhost:9093 silence add \
+			  alertname="InstanceDown" instance="node-1:9100" \
+			  --duration="2h" \
+			  --comment="maintenance" \
+			  --author="dmitry"
+			  ```
+			- Or via UI:
+				- `http://<server-ip>:9093` → **Silences** → **New Silence**
+		- **Best Practices & Tips**:
+			- Use consistent labels in all alerts: `severity`, `team`, `service`, `env`, `cluster`.
+			- Start simple:
+				- 1 default receiver + 1–2 routing rules, then extend gradually.
+			- Tune spam control:
+				- `group_wait` (batching), `group_interval` (update frequency), `repeat_interval` (reminder frequency).
+			- Use inhibition to avoid cascades during outages.
+			- Don’t store tokens/passwords in git:
+				- keep them in secrets/env or protected config locations.
+		- **Conclusion**:
+			- Alertmanager turns Prometheus alerts into actionable notifications: it routes them, groups them, deduplicates them, and suppresses noise.
+			- With proper labels + routing rules + inhibition, you get fewer messages and faster response times.
+			- Add receivers and routes step-by-step as your infrastructure and teams grow.
 - **Grafana: Installation, Data Source Setup, and Dashboard Integration**
 	- #Grafana
 	- **Overview**:
