@@ -231,7 +231,77 @@
 	-
 	-
 	-
-	-
+	- **`uniq`**
+		- **Definition**:
+			- A command-line utility that filters out (or reports) repeated adjacent lines in text input.
+		- **Basic Functions**:
+			- Removes duplicate lines **only when they are adjacent**.
+			- Can count occurrences, show only duplicates, or show only unique lines.
+			- Commonly paired with `sort` to remove duplicates from unsorted input.
+		- **Core Syntax**:
+			- ```
+			  uniq [OPTIONS]... [INPUT [OUTPUT]]
+			  ```
+		- **Important Behavior**:
+			- `uniq` compares **neighboring** lines only.
+			- If duplicates are not next to each other, `uniq` will not remove them unless you sort first:
+			  
+			  ```
+			  sort file.txt | uniq
+			  ```
+		- **Common Options**:
+			- **Count occurrences**: `-c`
+			- **Only duplicates** (repeated lines): `-d`
+			- **Only unique lines** (appear once): `-u`
+			- **Ignore case**: `-i`
+			- **Skip first N fields**: `-f N` (fields are whitespace-delimited)
+			- **Skip first N characters**: `-s N`
+			- **Compare at most N characters**: `-w N`
+		- **Notes / Gotchas**:
+			- `uniq` is for *adjacent* duplicates; `sort -u` is often a one-liner alternative:
+				- `sort -u file.txt` = sort + deduplicate
+			- If you need to deduplicate lines while preserving original order, `uniq` won’t help unless duplicates are already adjacent (you’d use other tools like `awk`).
+		- **Examples**:
+			- **Remove adjacent duplicates**:
+			  
+			  ```
+			  printf "a\na\nb\nb\nb\nc\n" | uniq
+			  ```
+			- **Count duplicates**:
+			  
+			  ```
+			  printf "a\na\nb\nb\nb\nc\n" | uniq -c
+			  ```
+			- **Show only duplicated lines**:
+			  
+			  ```
+			  printf "a\na\nb\nb\nb\nc\n" | uniq -d
+			  ```
+			- **Show only lines that appear once**:
+			  
+			  ```
+			  printf "a\na\nb\nb\nb\nc\n" | uniq -u
+			  ```
+			- **Deduplicate an unsorted file (sort first)**:
+			  
+			  ```
+			  sort hosts.txt | uniq
+			  ```
+			- **Count frequency of each line (classic pattern)**:
+			  
+			  ```
+			  sort access.log | uniq -c | sort -nr | head -n 20
+			  ```
+			- **Ignore case while deduplicating**:
+			  
+			  ```
+			  sort words.txt | uniq -i
+			  ```
+			- **Deduplicate by ignoring the first field** (e.g., ignore timestamps):
+			  
+			  ```
+			  sort data.txt | uniq -f 1
+			  ```
 	- **`sort`**
 		- **Definition**:
 			- A command-line utility that sorts lines of text from files or standard input and outputs the sorted result.
