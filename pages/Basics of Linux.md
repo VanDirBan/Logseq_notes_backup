@@ -1,5 +1,4 @@
 - #Commands
-  collapsed:: true
 	- Command Line
 		- `ls` - list files
 		- `cd` - change directory
@@ -52,6 +51,68 @@
 				  ```sh
 				  chmod u=rwx,g=rx,o=r file.txt
 				  ```
+	- **`du` (Disk Usage)**
+		- **Definition**:
+			- A command-line utility that estimates and displays disk space usage of files and directories (by default, based on allocated disk blocks).
+		- **Basic Functions**:
+			- Shows disk usage for files and directory trees.
+			- Helps identify large (“heavy”) directories.
+			- Supports human-readable units, depth limits, totals, and filesystem boundary control.
+		- **Common Options**:
+			- **Human-readable**: `-h` (KiB/MiB/GiB)
+			- **Summarize (total only)**: `-s`
+			- **Limit depth**: `--max-depth=N`
+			- **Grand total**: `-c`
+			- **Apparent size** (logical size, not allocated blocks): `--apparent-size`
+			- **Stay on one filesystem** (don’t cross mount points): `-x`
+			- **Count inodes instead of size**: `--inodes`
+			- **Exclude paths by pattern**: `--exclude='PATTERN'`
+		- **Notes / Gotchas**:
+			- By default, `du` reports **allocated** space, which can differ from the logical file size shown by `ls -l`.
+			- Sparse files, hard links, compression/deduplication, and bind mounts can produce “surprising” results.
+			- Use `--apparent-size` when you want to approximate the logical size of files.
+		- **Examples**:
+			- **Total size of a directory (summary)**:
+			  
+			  ```
+			  du -sh /var/log
+			  ```
+			- **Show sizes of top-level subdirectories (depth = 1)**:
+			  
+			  ```
+			  du -h --max-depth=1 /home/user
+			  ```
+			- **Grand total + per-item output**:
+			  
+			  ```
+			  du -h --max-depth=1 -c /srv
+			  ```
+			- **Find the largest directories (top 10)**:
+			  
+			  ```
+			  du -h --max-depth=1 /var | sort -hr | head -n 10
+			  ```
+			- **Do not cross filesystem boundaries (stay on one mount)**:
+			  
+			  ```
+			  du -xh --max-depth=1 /
+			  ```
+			- **Exclude patterns (e.g., caches, node_modules)**:
+			  
+			  ```
+			  du -h --max-depth=2 --exclude='node_modules' --exclude='*.log' .
+			  ```
+			- **Apparent size vs allocated size**:
+			  
+			  ```
+			  du -sh .
+			  du -sh --apparent-size .
+			  ```
+			- **Count inodes (number of files/dirs)**:
+			  
+			  ```
+			  du --inodes -s /home/user
+			  ```
 	- Data Filtering
 		- **`grep` (Global Regular Expression Print)**
 			- **Definition**:
