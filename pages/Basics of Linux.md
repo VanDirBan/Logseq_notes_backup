@@ -227,10 +227,62 @@
 			  ```
 			  find /srv -type f -perm /222
 			  ```
-	-
-	-
-	-
-	-
+	- **`strings`**
+		- **Definition**:
+			- A utility that extracts and prints human-readable (printable) character sequences from binary files (executables, libraries, images, dumps).
+		- **Basic Functions**:
+			- Finds embedded text inside binary data.
+			- Helps with quick analysis/debugging (e.g., URLs, error messages, version strings).
+			- Often used in malware triage / reverse engineering as a first glance tool.
+		- **Core Syntax**:
+			- ```
+			  strings [OPTIONS] FILE...
+			  ```
+		- **Common Options**:
+			- **Minimum string length**: `-n N` (GNU); `-N N` on some systems
+				- Example: `-n 8` prints strings of length ≥ 8
+			- **Show offsets** (where the string occurs in the file):
+				- `-t d` (decimal), `-t x` (hex), `-t o` (octal)
+			- **Scan whole file** (don’t stop early): `-a`
+			- **Include NUL-terminated strings** (common in C binaries): `-0`
+			- **Encoding / character size**:
+				- `-e s` (7-bit), `-e S` (8-bit; default), `-e b` (16-bit big-endian), `-e l` (16-bit little-endian)
+		- **Notes / Gotchas**:
+			- `strings` does not “understand” file formats; it just scans bytes and prints sequences of printable characters.
+			- Results can contain false positives (random printable sequences).
+			- For compressed/packed binaries, strings may be missing or meaningless until unpacked.
+			- Combine with `grep` to search for specific markers (URLs, “password”, “error”, etc.).
+		- **Examples**:
+			- **Extract strings from a binary**:
+			  
+			  ```
+			  strings /bin/ls
+			  ```
+			- **Show only longer strings (reduce noise)**:
+			  
+			  ```
+			  strings -n 8 ./program.bin
+			  ```
+			- **Search for URLs inside a binary**:
+			  
+			  ```
+			  strings -a ./app | grep -E 'https?://'
+			  ```
+			- **Search for suspicious keywords**:
+			  
+			  ```
+			  strings -a sample.bin | grep -iE 'password|token|key|secret'
+			  ```
+			- **Show offsets (hex) for found strings**:
+			  
+			  ```
+			  strings -a -t x ./program.bin | head
+			  ```
+			- **Extract UTF-16LE strings (common on Windows)**:
+			  
+			  ```
+			  strings -a -e l -n 6 sample.exe
+			  ```
 	- **`uniq`**
 		- **Definition**:
 			- A command-line utility that filters out (or reports) repeated adjacent lines in text input.
@@ -481,6 +533,656 @@
 					- Pattern: `([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}`
 				- **IPv4 Address**:
 					- Pattern: `\b([0-9]{1,3}\.){3}[0-9]{1,3}\b`
+	- Archives
+		- **`tar` (Tape ARchive)**
+			- **Definition**:
+				- A utility for packing multiple files/directories into a single archive (`.tar`) and optionally compressing it (e.g., `.tar.gz`, `.tar.xz`, `.tar.bz2`).
+			- **Basic Functions**:
+				- Create archives, extract archives, list contents.
+				- Preserve directory structure and file metadata (permissions, timestamps, owners).
+				- Often combined with compression for backups and transfers.
+			- **Core Syntax**:
+				- ```
+				  tar [OPTIONS] -f ARCHIVE.tar [FILES...]
+				  ```
+			- **Common Modes** (usually one of these):
+				- **Create**: `-c`
+				- **Extract**: `-x`
+				- **List**: `-t`
+				- **Append**: `-r` (add files to an existing uncompressed tar)
+				- **Update**: `-u` (add files newer than what’s in the archive)
+			- **Essential Options**:
+				- **Archive file**: `-f ARCHIVE` (must be provided)
+				- **Verbose**: `-v` (show processed files)
+				- **Preserve permissions** (common on extract): `-p`
+				- **Change directory before operation**: `-C DIR`
+			- **Compression Options**:
+				- **gzip**: `-z` → `.tar.gz` / `.tgz`
+				- **bzip2**: `-j` → `.tar.bz2`
+				- **xz**: `-J` → `.tar.xz`
+				- **zstd** (GNU tar, if supported): `--zstd` → `.tar.zst`
+			- **Common Flags for Safety/Control**:
+				- **Exclude patterns**: `--exclude='PATTERN'`
+				- **Keep old files on extract** (don’t overwrite): `--keep-old-files`
+				- **Skip newer files on extract**: `--keep-newer-files`
+				- **Show what would be extracted**: `-t` (list first)
+				- **Extract specific paths**: pass them after the archive
+			- **Notes / Gotchas**:
+				- Order matters: `-f` must be followed by the archive name (classic mistake).
+				- Prefer listing before extracting unknown archives:
+				  
+				  ```
+				  tar -tf archive.tar.gz
+				  ```
+				- **Path traversal risk**: extracting untrusted archives can overwrite files via `../` paths. Consider extracting to an empty directory and inspect contents first.
+				- To avoid archiving absolute paths, use relative paths or `-C`.
+			- **Examples**:
+				- **Create a `.tar.gz` archive of a directory**:
+				  
+				  ```
+				  tar -czf backup.tar.gz /etc
+				  ```
+				- **Create an archive from current directory (avoid absolute paths)**:
+				  
+				  ```
+				  tar -czf project.tar.gz -C /home/user project
+				  ```
+				- **List contents of an archive**:
+				  
+				  ```
+				  tar -tf backup.tar.gz
+				  ```
+				- **Extract a `.tar.gz` archive into the current directory**:
+				  
+				  ```
+				  tar -xzf backup.tar.gz
+				  ```
+				- **Extract into a specific directory**:
+				  
+				  ```
+				  tar -xzf backup.tar.gz -C /tmp/restore
+				  ```
+				- **Extract only specific files/paths from an archive**:
+				  
+				  ```
+				  tar -xzf backup.tar.gz etc/hosts etc/resolv.conf
+				  ```
+				- **Create a `.tar.xz` (better compression, slower)**:
+				  
+				  ```
+				  tar -cJf archive.tar.xz mydir/
+				  ```
+				- **Exclude cache/logs while archiving**:
+				  
+				  ```
+				  tar -czf site.tar.gz site/ --exclude='site/cache' --exclude='*.log'
+				  ```
+				- **Create an archive and see files as they are added**:
+				  
+				  ```
+				  tar -czvf backup.tar.gz /var/www
+				  ```
+		- **`gzip`**
+			- **Definition**:
+				- A compression utility that compresses files using the DEFLATE algorithm, typically producing `.gz` files. Common in Unix/Linux pipelines and backups.
+			- **Basic Functions**:
+				- Compress a file helps save disk space and speed up transfers.
+				- Decompress `.gz` files back to the original content.
+				- Works with streams (stdin/stdout), making it great for pipelines.
+			- **Core Syntax**:
+				- ```
+				  gzip [OPTIONS] [FILE]...
+				  ```
+			- **Common Options**:
+				- **Decompress**: `-d` (same as `gunzip`)
+				- **Keep original file**: `-k` (compress/decompress but keep input)
+				- **Write to stdout**: `-c` (useful in pipelines)
+				- **Verbose**: `-v`
+				- **Compression level**: `-1` (fastest) … `-9` (best compression; slowest)
+				- **Test integrity** (don’t output): `-t`
+				- **Force overwrite**: `-f`
+				- **List info about `.gz`**: `-l` (original size, compressed size, ratio, name)
+			- **Notes / Gotchas**:
+				- By default, `gzip file` replaces `file` with `file.gz` (original is removed unless `-k`).
+				- `gzip` compresses **single files**. For directories, use `tar` + gzip:
+				  
+				  ```
+				  tar -czf archive.tar.gz dir/
+				  ```
+				- For viewing a `.gz` text file without full decompression, use:
+					- `zcat`, `zless`, `zgrep`
+			- **Examples**:
+				- **Compress a file (replaces the original)**:
+				  
+				  ```
+				  gzip access.log
+				  ```
+				- **Compress but keep original**:
+				  
+				  ```
+				  gzip -k access.log
+				  ```
+				- **Decompress a file**:
+				  
+				  ```
+				  gzip -d access.log.gz
+				  ```
+				- **Decompress but keep the `.gz`**:
+				  
+				  ```
+				  gzip -dk access.log.gz
+				  ```
+				- **Compress with maximum compression**:
+				  
+				  ```
+				  gzip -9 bigfile.txt
+				  ```
+				- **Stream compression to a new file**:
+				  
+				  ```
+				  gzip -c file.txt > file.txt.gz
+				  ```
+				- **Stream decompression to stdout**:
+				  
+				  ```
+				  gzip -dc file.txt.gz | head
+				  ```
+				- **Test `.gz` integrity**:
+				  
+				  ```
+				  gzip -t backup.tar.gz
+				  ```
+				- **Show stats for a `.gz` file**:
+				  
+				  ```
+				  gzip -l backup.tar.gz
+				  ```
+				- **Search inside a `.gz` log**:
+				  
+				  ```
+				  zgrep -i "error" app.log.gz
+				  ```
+		- **`bzip2`**
+			- **Definition**:
+				- A compression utility that compresses files using the Burrows–Wheeler transform + Huffman coding, typically producing `.bz2` files. Often achieves better compression than `gzip`, but is usually slower.
+			- **Basic Functions**:
+				- Compress files into `.bz2`.
+				- Decompress `.bz2` back to the original.
+				- Works with streams (stdin/stdout) for pipelines.
+			- **Core Syntax**:
+				- ```
+				  bzip2 [OPTIONS] [FILE]...
+				  ```
+			- **Related Commands**:
+				- `bunzip2` (decompress)
+				- `bzcat` (decompress to stdout)
+			- **Common Options**:
+				- **Decompress**: `-d` (same as `bunzip2`)
+				- **Keep original file**: `-k`
+				- **Write to stdout**: `-c` (for pipelines)
+				- **Verbose**: `-v`
+				- **Compression level**: `-1` (fastest) … `-9` (best compression; slowest)
+				- **Test integrity**: `-t`
+				- **Force overwrite**: `-f`
+			- **Notes / Gotchas**:
+				- Like `gzip`, `bzip2` compresses **single files**. For directories, use `tar` + bzip2:
+				  
+				  ```
+				  tar -cjf archive.tar.bz2 dir/
+				  ```
+				- `bzip2 file` typically replaces the original file with `file.bz2` (unless `-k`).
+				- For quick viewing/searching inside compressed text:
+					- `bzcat file.bz2 | less`
+					- Some systems also have `bzgrep` / `bzless`.
+				- In many modern cases, `xz` or `zstd` can be better choices (higher compression or faster decompression), but `bzip2` is still widely supported.
+			- **Examples**:
+				- **Compress a file (replaces the original)**:
+				  
+				  ```
+				  bzip2 access.log
+				  ```
+				- **Compress but keep original**:
+				  
+				  ```
+				  bzip2 -k access.log
+				  ```
+				- **Decompress a file**:
+				  
+				  ```
+				  bzip2 -d access.log.bz2
+				  ```
+				- **Decompress but keep the `.bz2`**:
+				  
+				  ```
+				  bzip2 -dk access.log.bz2
+				  ```
+				- **Maximum compression**:
+				  
+				  ```
+				  bzip2 -9 bigfile.txt
+				  ```
+				- **Stream compression to a new file**:
+				  
+				  ```
+				  bzip2 -c file.txt > file.txt.bz2
+				  ```
+				- **Stream decompression to stdout**:
+				  
+				  ```
+				  bzip2 -dc file.txt.bz2 | head
+				  ```
+				- **Test `.bz2` integrity**:
+				  
+				  ```
+				  bzip2 -t backup.tar.bz2
+				  ```
+				- **Create a `.tar.bz2` archive**:
+				  
+				  ```
+				  tar -cjf backup.tar.bz2 /etc
+				  ```
+				- **List contents of a `.tar.bz2` archive**:
+				  
+				  ```
+				  tar -tjf backup.tar.bz2
+				  ```
+		- **`xxd`**
+			- **Definition**:
+				- A utility that creates a hex dump of a file/stream (and can reverse a hex dump back to the original binary). Commonly used for low-level inspection and quick binary edits.
+			- **Basic Functions**:
+				- View binary data as hexadecimal + ASCII.
+				- Produce “plain” hex output suitable for scripts.
+				- Convert a hex dump back into a binary file (`-r`).
+			- **Core Syntax**:
+				- ```
+				  xxd [OPTIONS] [FILE]
+				  ```
+			- **Common Options**:
+				- **Revert (hex → binary)**: `-r`
+				- **Plain hex output** (no addresses/ASCII): `-p`
+				- **Columns per line**: `-c N`
+				- **Limit length**: `-l N`
+				- **Seek/offset**:
+					- `-s N` (start at offset N bytes)
+					- `-s +N` (start N bytes from current position)
+				- **Little-endian groups**: `-e` (useful when inspecting multi-byte values)
+				- **Binary digit output**: `-b` (bit dump)
+				- **Include offsets**: default format shows offsets and ASCII
+			- **Notes / Gotchas**:
+				- Great for debugging file formats (headers/magic bytes) like `PNG`, `ELF`, `ZIP`.
+				- `xxd -p` is handy to create hex strings for pipelines; combine with `tr -d '\n'` to make one-line output.
+				- Reverse conversion requires a compatible dump format (best: use `-p` both ways).
+			- **Examples**:
+				- **Basic hex dump**:
+				  
+				  ```
+				  xxd file.bin | head
+				  ```
+				- **Dump only first 256 bytes**:
+				  
+				  ```
+				  xxd -l 256 file.bin
+				  ```
+				- **Start dumping from offset 0x100 (256)**:
+				  
+				  ```
+				  xxd -s 0x100 -l 64 file.bin
+				  ```
+				- **Plain hex output (good for scripting)**:
+				  
+				  ```
+				  xxd -p file.bin | head
+				  ```
+				- **One-line hex string**:
+				  
+				  ```
+				  xxd -p file.bin | tr -d '\n'
+				  ```
+				- **Reverse: convert hex back to binary**:
+				  
+				  ```
+				  xxd -p file.bin > dump.hex
+				  xxd -r -p dump.hex > restored.bin
+				  ```
+				- **Inspect a file header (magic bytes)**:
+				  
+				  ```
+				  xxd -l 16 image.png
+				  ```
+				- **Show bits instead of hex**:
+				  
+				  ```
+				  xxd -b -l 32 file.bin
+				  ```
+	- **`nc` / `netcat`**
+		- **Definition**:
+			- A networking utility for reading/writing data over TCP/UDP connections. Often called the “Swiss Army knife” for network troubleshooting and simple data transfer.
+		- **Basic Functions**:
+			- Connect to TCP/UDP services and send/receive raw data.
+			- Listen on a port to accept incoming connections (simple server).
+			- Port scanning (basic), banner grabbing, and quick connectivity tests.
+			- Pipe data between commands and network sockets.
+		- **Core Syntax**:
+			- **Client (connect)**:
+			  
+			  ```
+			  nc [OPTIONS] HOST PORT
+			  ```
+			- **Server (listen)**:
+			  
+			  ```
+			  nc -l [OPTIONS] [PORT]
+			  ```
+		- **Common Options** (may vary a bit between implementations: GNU/OpenBSD/BusyBox):
+			- **Listen mode**: `-l`
+			- **Verbose**: `-v` (often `-vv` for more)
+			- **Numeric only** (don’t resolve DNS): `-n`
+			- **Zero-I/O scan mode** (port scan): `-z`
+			- **Timeout**: `-w SECONDS`
+			- **UDP mode**: `-u`
+			- **Keep listening** (accept multiple connections; OpenBSD nc): `-k`
+			- **Source port**: `-p PORT`
+			- **Source address/interface**: `-s ADDR`
+		- **Notes / Gotchas**:
+			- `nc` is great for quick tests, but it’s also powerful enough to be risky on production networks—use responsibly.
+			- For TLS/HTTPS testing, `nc` won’t do TLS itself; use `openssl s_client` or `curl` for HTTPS.
+			- Different `nc` flavors support different flags (e.g., `-k` not always available).
+		- **Examples**:
+			- **Test if a TCP port is reachable**:
+			  
+			  ```
+			  nc -vz -w 3 example.com 443
+			  ```
+			- **Connect and manually send an HTTP request**:
+			  
+			  ```
+			  nc example.com 80
+			  ```
+			  
+			  Then type:
+			  
+			  ```
+			  GET / HTTP/1.1
+			  Host: example.com
+			  ```
+			- **Banner grabbing (see what a service prints on connect)**:
+			  
+			  ```
+			  nc -v example.com 22
+			  ```
+			- **Listen on a port (simple server)**:
+			  
+			  ```
+			  nc -l 12345
+			  ```
+			- **Send a file to a listener (simple file transfer)**:
+				- Receiver:
+				  
+				  ```
+				  nc -l 9000 > received.bin
+				  ```
+				- Sender:
+				  
+				  ```
+				  nc HOST 9000 < file.bin
+				  ```
+			- **Chat between two machines**:
+				- On machine A:
+				  
+				  ```
+				  nc -l 5000
+				  ```
+				- On machine B:
+				  
+				  ```
+				  nc A_IP 5000
+				  ```
+			- **UDP listener and sender**:
+				- Listener:
+				  
+				  ```
+				  nc -lu 9999
+				  ```
+				- Sender:
+				  
+				  ```
+				  echo "ping" | nc -u HOST 9999
+				  ```
+			- **Pipe command output over the network**:
+			  
+			  ```
+			  echo "hello" | nc HOST 1234
+			  ```
+	- **`openssl`**
+		- **Definition**:
+			- A command-line toolkit for working with TLS/SSL, certificates (X.509), keys, hashing, encryption, and network crypto troubleshooting.
+		- **Basic Functions**:
+			- Inspect and validate certificates and certificate chains.
+			- Generate private keys, CSRs, and self-signed certificates.
+			- Test TLS connections (`s_client`) and act as a simple TLS server (`s_server`).
+			- Compute hashes, encode/decode (Base64), encrypt/decrypt data.
+		- **Core Syntax**:
+			- ```
+			  openssl <subcommand> [OPTIONS]
+			  ```
+			- Common subcommands: `version`, `s_client`, `x509`, `req`, `genpkey`, `rsa`, `pkey`, `dgst`, `enc`, `rand`, `verify`
+		- **Common Subcommands**:
+			- **Version / build info**: `openssl version -a`
+			- **TLS client**: `openssl s_client ...`
+			- **Certificate inspection**: `openssl x509 ...`
+			- **CSR creation**: `openssl req ...`
+			- **Key generation**: `openssl genpkey ...`
+			- **Hashing**: `openssl dgst ...`
+			- **Symmetric encryption**: `openssl enc ...`
+		- **TLS / Network Debugging (`s_client`)**:
+			- **Connect to a host/port**:
+			  
+			  ```
+			  openssl s_client -connect example.com:443
+			  ```
+			- **Show full certificate chain**:
+			  
+			  ```
+			  openssl s_client -connect example.com:443 -showcerts
+			  ```
+			- **Set SNI (important for virtual hosts)**:
+			  
+			  ```
+			  openssl s_client -connect example.com:443 -servername example.com
+			  ```
+			- **Print only handshake summary / less noise**:
+			  
+			  ```
+			  openssl s_client -connect example.com:443 -servername example.com -brief
+			  ```
+			- **Avoid interactive “chat” mode** (useful in scripts):
+			  
+			  ```
+			  openssl s_client -connect example.com:443 -servername example.com -quiet
+			  ```
+			- **Verify with system trust store** (and show verify result):
+			  
+			  ```
+			  openssl s_client -connect example.com:443 -servername example.com -verify_return_error
+			  ```
+		- **Certificates & Keys (X.509)**:
+			- **Inspect a certificate (PEM)**:
+			  
+			  ```
+			  openssl x509 -in cert.pem -text -noout
+			  ```
+			- **Get subject/issuer/dates quickly**:
+			  
+			  ```
+			  openssl x509 -in cert.pem -noout -subject -issuer -dates
+			  ```
+			- **Check SAN (Subject Alternative Names)**:
+			  
+			  ```
+			  openssl x509 -in cert.pem -noout -ext subjectAltName
+			  ```
+			- **Extract the certificate from a server**:
+			  
+			  ```
+			  openssl s_client -connect example.com:443 -servername example.com </dev/null \
+			  | openssl x509 -outform PEM > server.pem
+			  ```
+			- **Generate a private key (RSA 2048)**:
+			  
+			  ```
+			  openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out key.pem
+			  ```
+			- **Create a CSR (Certificate Signing Request)**:
+			  
+			  ```
+			  openssl req -new -key key.pem -out req.csr
+			  ```
+			- **Create a self-signed certificate (dev/test)**:
+			  
+			  ```
+			  openssl req -x509 -newkey rsa:2048 -keyout key.pem -out cert.pem -days 365
+			  ```
+		- **Hashing / Digests (`dgst`)**:
+			- **SHA-256 hash of a file**:
+			  
+			  ```
+			  openssl dgst -sha256 file.iso
+			  ```
+			- **Compare with expected checksum**:
+			  
+			  ```
+			  echo "EXPECTED_HASH  file.iso" | sha256sum -c
+			  ```
+		- **Symmetric Encryption (`enc`)**:
+			- **Encrypt with AES-256-CBC (password-based; legacy-ish)**:
+			  
+			  ```
+			  openssl enc -aes-256-cbc -salt -in secrets.txt -out secrets.enc
+			  ```
+			- **Decrypt**:
+			  
+			  ```
+			  openssl enc -d -aes-256-cbc -in secrets.enc -out secrets.txt
+			  ```
+		- **Base64 Encoding/Decoding (via `enc`)**:
+			- **Encode**:
+			  
+			  ```
+			  openssl enc -base64 -in file.bin -out file.b64
+			  ```
+			- **Decode**:
+			  
+			  ```
+			  openssl enc -d -base64 -in file.b64 -out file.bin
+			  ```
+		- **Notes / Gotchas**:
+			- OpenSSL output/flags can differ across major versions (1.1.1 vs 3.x).
+			- For HTTPS/TLS testing, always pass `-servername` to avoid wrong cert on SNI hosts.
+			- `openssl enc` password-based encryption is easy but not always best practice; for modern workflows, prefer tools/protocols with authenticated encryption and proper key management.
+			- `s_client` is interactive by default; add `-quiet` and/or redirect stdin to make it script-friendly:
+			  
+			  ```
+			  openssl s_client -connect host:443 -servername host </dev/null
+			  ```
+	- **`ss` (Socket Statistics)**
+		- **Definition**:
+			- A utility (from `iproute2`) for inspecting network sockets and connections (TCP/UDP/UNIX), often used as a faster, more modern replacement for `netstat`.
+		- **Basic Functions**:
+			- List listening ports and active connections.
+			- Show process info (PID/program) owning sockets.
+			- Filter by protocol, state, port, address, and more.
+			- Display extended TCP details (timers, congestion, etc.).
+		- **Core Syntax**:
+			- ```
+			  ss [OPTIONS] [FILTER]
+			  ```
+		- **Common Options**:
+			- **All sockets**: `-a`
+			- **Listening only**: `-l`
+			- **TCP sockets**: `-t`
+			- **UDP sockets**: `-u`
+			- **UNIX domain sockets**: `-x`
+			- **Numeric output** (no DNS/service name resolving): `-n`
+			- **Show processes** (PID/program name): `-p` *(usually needs sudo)*
+			- **Summary**: `-s`
+			- **Extended info**: `-e`
+			- **More detailed**: `-i`
+			- **Show timer info**: `-o`
+			- **IPv4 only / IPv6 only**: `-4` / `-6`
+		- **Most Common “Recipes”**:
+			- **List all listening TCP/UDP ports**:
+			  
+			  ```
+			  ss -lntup
+			  ```
+			- **Show only listening TCP ports**:
+			  
+			  ```
+			  ss -lnt
+			  ```
+			- **Show established TCP connections**:
+			  
+			  ```
+			  ss -nt state established
+			  ```
+			- **Show sockets for a specific port (e.g., 443)**:
+			  
+			  ```
+			  ss -lntp '( sport = :443 )'
+			  ```
+			- **Find who is using a port (PID/process)**:
+			  
+			  ```
+			  sudo ss -lntp '( sport = :3000 )'
+			  ```
+		- **Filtering (Powerful Part)**:
+			- Filters are expressions, often needing quotes to prevent shell parsing.
+			- Common operators:
+				- `sport` / `dport` (source/destination port)
+				- `src` / `dst` (source/destination address)
+				- `=`, `!=`, `>=`, `<=`
+				- Combine with `and`, `or`
+			- Examples:
+			  
+			  ```
+			  ss -nt '( dst = 1.1.1.1 and dport = :443 )'
+			  ss -nt '( sport >= :30000 and sport <= :40000 )'
+			  ```
+		- **Notes / Gotchas**:
+			- Service name resolution can hide real port numbers unless you use `-n`.
+			- Process info (`-p`) might require root privileges to see all processes.
+			- `ss` shows **sockets** (OS-level endpoints), not “applications” directly—use `-p` to map to processes.
+		- **Examples**:
+			- **Quick overview (like netstat summary)**:
+			  
+			  ```
+			  ss -s
+			  ```
+			- **Show listening services with processes**:
+			  
+			  ```
+			  sudo ss -lntup
+			  ```
+			- **Show all UDP sockets (listening + connected)**:
+			  
+			  ```
+			  ss -anu
+			  ```
+			- **Show UNIX sockets (useful for local services like Docker, systemd)**:
+			  
+			  ```
+			  ss -xl
+			  ```
+			- **Check which process is bound to port 9100 (node_exporter)**:
+			  
+			  ```
+			  sudo ss -lntp '( sport = :9100 )'
+			  ```
+			- **Show TCP connections with extra TCP internals**:
+			  
+			  ```
+			  ss -ntpie
+			  ```
 	- Package Management
 		- `pip` - package installer for Python
 		- `dnf` - package manager for RPM-based distributions (e.g., Fedora)
