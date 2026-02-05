@@ -113,6 +113,222 @@
 			  ```
 			  du --inodes -s /home/user
 			  ```
+	- **`find`**
+		- **Definition**:
+			- A command-line utility for searching files and directories by criteria (name, type, size, time, permissions, owner, etc.) and optionally performing actions on the matches.
+		- **Basic Functions**:
+			- Recursively traverses directories starting from a given path.
+			- Filters results using tests (`-name`, `-type`, `-size`, `-mtime`, `-perm`, …).
+			- Executes actions on matches (`-print`, `-delete`, `-exec`, `-ok`, …).
+		- **Core Syntax**:
+			- **General form**:
+			  
+			  ```
+			  find [PATH...] [TESTS...] [ACTIONS...]
+			  ```
+			- **Typical default action**: `-print` (prints matching paths).
+		- **Common Tests (Filters)**:
+			- **By name**:
+				- `-name "PATTERN"` (case-sensitive)
+				- `-iname "PATTERN"` (case-insensitive)
+			- **By type**:
+				- `-type f` (regular file), `-type d` (directory), `-type l` (symlink)
+			- **By size**:
+				- `-size +100M` (greater than 100 MB)
+				- `-size -10k` (less than 10 KB)
+				- `-size 1G` (exactly ~1 GiB, in find’s units)
+			- **By time**:
+				- `-mtime -7` (modified within last 7 days)
+				- `-mmin -60` (modified within last 60 minutes)
+				- `-ctime` / `-cmin` (metadata change time)
+				- `-atime` / `-amin` (last access time)
+			- **By ownership**:
+				- `-user USER`, `-group GROUP`
+			- **By permissions**:
+				- `-perm 644` (exact)
+				- `-perm -644` (at least these bits set)
+				- `-perm /222` (any of these bits set; e.g., writable by someone)
+			- **Depth control**:
+				- `-maxdepth N`, `-mindepth N`
+		- **Common Actions**:
+			- **Print**:
+				- `-print` (default), `-print0` (NUL-delimited; safe for weird filenames)
+			- **Execute a command**:
+				- `-exec CMD {} \;` (runs once per match)
+				- `-exec CMD {} +` (packs many matches per run; faster)
+				- `-ok CMD {} \;` (asks confirmation)
+			- **Delete**:
+				- `-delete` (dangerous; prefer dry-run first)
+		- **Operators / Logic**:
+			- **AND**: implicit between tests (e.g., `-type f -name "*.log"`).
+			- **OR**: `-o` (use parentheses to control precedence).
+			- **NOT**: `!` or `-not`.
+			- **Grouping**:
+				- Use escaped parentheses in shell: `\( ... \)`
+		- **Notes / Gotchas**:
+			- Prefer `-print0` + `xargs -0` when piping to avoid breaking on spaces/newlines.
+			- `-exec ... {} +` is usually much faster than `-exec ... {} \;`.
+			- `-delete` obeys the expression order; put tests **before** `-delete`.
+			- If you need to match dotfiles, patterns like `"*"` already include them in `find` (unlike shell globs), but `-name ".*"` matches only dotfiles.
+		- **Examples**:
+			- **Find files by name in the current directory tree**:
+			  
+			  ```
+			  find . -name "app.conf"
+			  ```
+			- **Case-insensitive name search**:
+			  
+			  ```
+			  find /etc -iname "*ssh*"
+			  ```
+			- **Find directories only**:
+			  
+			  ```
+			  find . -type d -name ".git"
+			  ```
+			- **Find files larger than 100 MB**:
+			  
+			  ```
+			  find /var -type f -size +100M
+			  ```
+			- **Find files modified in the last 24 hours**:
+			  
+			  ```
+			  find . -type f -mtime -1
+			  ```
+			- **Find and delete `*.tmp` files (dry-run first!)**:
+			  
+			  ```
+			  find . -type f -name "*.tmp" -print
+			  find . -type f -name "*.tmp" -delete
+			  ```
+			- **Find `*.log` and execute a command (once per file)**:
+			  
+			  ```
+			  find /var/log -type f -name "*.log" -exec gzip {} \;
+			  ```
+			- **Same, but faster (batch execution)**:
+			  
+			  ```
+			  find /var/log -type f -name "*.log" -exec gzip {} +
+			  ```
+			- **Use OR with grouping**:
+			  
+			  ```
+			  find . \( -name "*.jpg" -o -name "*.png" \) -type f
+			  ```
+			- **Safe piping with NUL delimiters**:
+			  
+			  ```
+			  find . -type f -name "*.txt" -print0 | xargs -0 wc -l
+			  ```
+			- **Find files writable by anyone (permission bits)**:
+			  
+			  ```
+			  find /srv -type f -perm /222
+			  ```
+	-
+	-
+	-
+	-
+	-
+	- **`sort`**
+		- **Definition**:
+			- A command-line utility that sorts lines of text from files or standard input and outputs the sorted result.
+		- **Basic Functions**:
+			- Sorts lines alphabetically (default: lexicographic, by byte/locale).
+			- Supports numeric sorting, reverse order, unique filtering, and key/field-based sorting.
+			- Commonly used in pipelines to organize command output.
+		- **Core Syntax**:
+			- ```
+			  sort [OPTIONS]... [FILE]...
+			  ```
+		- **Common Options**:
+			- **Reverse order**: `-r`
+			- **Numeric sort**: `-n` (compares numbers by value)
+			- **Human-numeric sort** (e.g., `1K`, `10M`, `2G`): `-h`
+			- **Unique lines**: `-u`
+			- **Check if already sorted**: `-c` (exit non-zero if not sorted)
+			- **Ignore leading blanks**: `-b`
+			- **Ignore case**: `-f`
+			- **General numeric sort** (handles decimals, exponents): `-g`
+			- **Version sort** (e.g., `v1.9` < `v1.10`): `-V`
+			- **Specify field delimiter**: `-t 'DELIM'`
+			- **Sort by key/field**: `-k START[,END]`
+			- **Output to file**: `-o FILE`
+		- **Key / Field Sorting**:
+			- Fields are defined by a delimiter (`-t`), default is whitespace.
+			- `-k 2,2` means “sort using only field 2”.
+			- You can set start/end positions to limit what part of the line is used as the key.
+		- **Notes / Gotchas**:
+			- Locale affects ordering; for consistent byte-order sorting, set:
+			  
+			  ```
+			  LC_ALL=C sort ...
+			  ```
+			- `sort -u` is not identical to `uniq` in all cases:
+				- `uniq` removes adjacent duplicates (input should already be sorted).
+				- `sort -u` sorts and removes duplicates in one step.
+			- `-h` is ideal for sizes like `10K`, `2G`, but relies on valid suffixes.
+			- `-n` vs `-g`:
+				- `-n` numeric (simple) is usually enough.
+				- `-g` supports floating point and scientific notation more reliably.
+		- **Examples**:
+			- **Sort a file alphabetically**:
+			  
+			  ```
+			  sort names.txt
+			  ```
+			- **Sort in reverse**:
+			  
+			  ```
+			  sort -r names.txt
+			  ```
+			- **Numeric sort**:
+			  
+			  ```
+			  printf "10\n2\n33\n" | sort -n
+			  ```
+			- **Sort human-readable sizes**:
+			  
+			  ```
+			  printf "1K\n900\n2M\n10K\n" | sort -h
+			  ```
+			- **Remove duplicates (sort + unique)**:
+			  
+			  ```
+			  sort -u hosts.txt
+			  ```
+			- **Check if a file is already sorted**:
+			  
+			  ```
+			  sort -c data.txt
+			  ```
+			- **Sort by second column (whitespace-delimited)**:
+			  
+			  ```
+			  sort -k 2,2 table.txt
+			  ```
+			- **Sort by 3rd column using comma delimiter**:
+			  
+			  ```
+			  sort -t ',' -k 3,3 data.csv
+			  ```
+			- **Sort by numeric value in 2nd column (comma-delimited)**:
+			  
+			  ```
+			  sort -t ',' -k 2,2n data.csv
+			  ```
+			- **Stable-ish results across systems (locale-independent)**:
+			  
+			  ```
+			  LC_ALL=C sort input.txt
+			  ```
+			- **Sort command output: largest directories (du + sort)**:
+			  
+			  ```
+			  du -h --max-depth=1 /var | sort -hr | head -n 10
+			  ```
 	- Data Filtering
 		- **`grep` (Global Regular Expression Print)**
 			- **Definition**:
