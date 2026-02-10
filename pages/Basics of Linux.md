@@ -47,10 +47,85 @@
 				  ```sh
 				  chmod -R 755 /var/www/html
 				  ```
-				- **Set symbolic permissions for all owners**:
-				  ```sh
-				  chmod u=rwx,g=rx,o=r file.txt
-				  ```
+			- **Set symbolic permissions for all owners**:
+			  ```sh
+			  chmod u=rwx,g=rx,o=r file.txt
+			  ```
+	- **`diff`**
+		- **Definition**:
+			- A utility that compares files (or directories) and outputs the differences between them. Commonly used to review changes, generate patches, and troubleshoot config drift.
+		- **Basic Functions**:
+			- Compare two text files line-by-line.
+			- Compare directories recursively.
+			- Output in different formats (unified, context, side-by-side).
+			- Create patch files that can be applied with `patch`.
+		- **Core Syntax**:
+			- ```
+			  diff [OPTIONS] FILE1 FILE2
+			  diff [OPTIONS] -r DIR1 DIR2
+			  ```
+		- **Common Options**:
+			- **Unified format** (most common): `-u`
+			- **Context format**: `-c`
+			- **Recursive (directories)**: `-r`
+			- **Brief output** (only says if files differ): `-q`
+			- **Ignore whitespace changes**:
+				- `-b` (ignore changes in amount of whitespace)
+				- `-w` (ignore all whitespace)
+			- **Ignore blank lines**: `-B`
+			- **Ignore case**: `-i`
+			- **Side-by-side view**: `-y`
+			- **Suppress common lines** (with `-y`): `--suppress-common-lines`
+			- **Treat absent files as empty**: `-N`
+		- **Notes / Gotchas**:
+			- For code/config reviews, prefer unified diff (`-u`)—it’s the standard format for patches and PRs.
+			- `diff -r` compares directory contents; use `-q` if you only need “what differs” quickly.
+			- Whitespace options are useful when formatting changes create noise, but can hide meaningful differences in some configs (YAML, Makefiles).
+			- `diff` exit codes are meaningful:
+				- `0` = no differences
+				- `1` = differences found
+				- `2` = error (missing file, permission issue, etc.)
+		- **Examples**:
+			- **Compare two files (unified diff)**:
+			  
+			  ```
+			  diff -u nginx.conf nginx.conf.new
+			  ```
+			- **Ignore whitespace-only changes**:
+			  
+			  ```
+			  diff -u -w file1.txt file2.txt
+			  ```
+			- **Compare directories recursively**:
+			  
+			  ```
+			  diff -ruN /etc/nginx /etc/nginx.backup
+			  ```
+			- **Only show whether files differ (quiet)**:
+			  
+			  ```
+			  diff -q file1.txt file2.txt
+			  ```
+			- **Side-by-side comparison**:
+			  
+			  ```
+			  diff -y --suppress-common-lines file1.txt file2.txt
+			  ```
+			- **Create a patch file**:
+			  
+			  ```
+			  diff -u old.conf new.conf > change.patch
+			  ```
+			- **Apply a patch** (with `patch`):
+			  
+			  ```
+			  patch -p0 < change.patch
+			  ```
+			- **Compare a file against stdin**:
+			  
+			  ```
+			  echo "hello" | diff -u file.txt -
+			  ```
 	- **`du` (Disk Usage)**
 		- **Definition**:
 			- A command-line utility that estimates and displays disk space usage of files and directories (by default, based on allocated disk blocks).
